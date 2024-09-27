@@ -4,18 +4,28 @@ const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 
+// написать привет мир в консоль
+// console.log('Hello, world!');
+
+// const x = await fetch('https://nefrocentr.ru');
+
+// if (x.ok) {
+//   console.log('Сайт доступен');
+// }
+
 // Функция для проверки доступности сайта
 async function checkSiteAvailability(site) {
   try {
     const response = await fetch(site);
     if (response.ok) {
-      return 'OK'; // `${site} доступен (Статус: ${response.status})`;
+      return {'text': `Сайт ${site} доступен (Статус: ${response.status})`, 'status': 'ok'};
     } else {
-      throw new Error(`${site} недоступен (Статус: ${response.status})`);
+      return {'text': `${site} недоступен (Статус: ${response.status})`, 'status': 'error'};
+      // throw new Error(`${site} недоступен (Статус: ${response.status})`);
     }
   } catch (error) {
     logError(error.message);
-    return `${site} недоступен (Ошибка: ${error.message})`;
+    return {'text': `${site} недоступен (Ошибка: ${error.message})`, 'status': 'error'};
   }
 }
 
