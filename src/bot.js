@@ -1,14 +1,15 @@
-// src/bot.js
 const { Telegraf } = require("telegraf");
 const { message } = require("telegraf/filters");
 const config = require("./config");
 const checkSites = require("./monitor");
-// console.log({ 'config.botToken': config.botToken });
-console.log(process.env.API_BOT_TOKEN);
-// Инициализация бота
+
+// Логируем токен для проверки (уберите в продакшне)
+// console.log(config.token);
+
+// Инициализация бота через process.env.API_BOT_TOKEN или config.token
 const bot = new Telegraf(process.env.API_BOT_TOKEN);
 
-// Запуск бота
+// Команда /start
 bot.start((ctx) =>
   ctx.reply("Бот запущен! Для проверки используйте команду /check")
 );
@@ -18,28 +19,21 @@ bot.command("check", async (ctx) => {
   ctx.reply("Проверяю сайты...");
   const results = await checkSites(config.sitesToCheck);
   results.forEach((result) => {
-    // if (result.status == "ok") {
-    //   bot.telegram.sendMessage(config.chatId, result.text);
-    // } else if (result.status == "error") {
-    //   console.log({ result });
-    //   bot.telegram.sendMessage(config.chatId, result.text);
-    // }
-
-    // ctx.reply(result.text);
-
-    console.log({ result });
+    if (result.status === "ok") {
+      bot.telegram.sendMessage(config.chatId, result.text);
+    } else if (result.status === "error") {
+      console.log({ result });
+      bot.telegram.sendMessage(config.chatId, result.text);
+    }
   });
 });
 
 // Цикл проверки сайтов
-setInterval(async () => {
+const intervalId = setInterval(async () => {
   try {
     const results = await checkSites(config.sitesToCheck);
     results.forEach((result) => {
-      // console.log({ result });
-      if (result.status == "ok") {
-        bot.telegram.sendMessage(config.chatId, result.text);
-      } else if (result.status == "error") {
+      if (result.status === "error") {
         console.log({ result });
         bot.telegram.sendMessage(config.chatId, result.text);
       }
@@ -49,19 +43,31 @@ setInterval(async () => {
   }
 }, config.checkInterval);
 
-// Запуск бота
-bot
-  .launch()
-  .then(() => console.log("Бот успешно запущен"))
-  .catch((error) => {
+// Функция для запуска бота
+async function startBot() {
+  console.log("Запуск бота...");  // Логируем начало запуска
+  try {
+    await bot.launch();
+    console.log("Бот успешно запущен");
+  } catch (error) {
     console.error("Ошибка при запуске бота:", error.message);
-  });
+  }
+}
 
-// bot.start((ctx) => ctx.reply('Welcome'))
-bot.help((ctx) => ctx.reply('Send me a sticker'))
-bot.on(message('sticker'), (ctx) => ctx.reply('👍'))
-bot.hears('hi', (ctx) => ctx.reply('Hey there'))
+// Запуск бота
+startBot();
 
-// Enable graceful stop
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
+// Обработка сигналов завершения
+process.once("SIGINT", async () => {
+  console.log("Получен сигнал SIGINT. Завершаем работу...");
+  clearInterval(intervalId); // Остановить цикл
+  await bot.stop("SIGINT");  // Остановить бота
+  process.exit(0);           // Завершить процесс
+});
+
+process.once("SIGTERM", async () => {
+  console.log("Получен сигнал SIGTERM. Завершаем работу...");
+  clearInterval(intervalId); // Остановить цикл
+  await bot.stop("SIGTERM");  // Остановить бота
+  process.exit(0);           // Завершить процесс
+});
